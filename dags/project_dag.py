@@ -73,7 +73,7 @@ def fetchConfig(**kwargs):
     
     ti.xcom_push(key="S3_LandingBucket_locations",value=s3_bucket_locs)
 
-
+#landing zone to raw zone
 def landing_to_raw(**kwargs):
     ti = kwargs['ti']
     conf = ti.xcom_pull(key="data")
