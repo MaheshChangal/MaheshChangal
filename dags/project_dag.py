@@ -92,7 +92,7 @@ def landing_to_raw(**kwargs):
     bucket = s3.Bucket(locations['raw_bucket'])
     bucket.copy(copy_source, conf['key'])
     
-    
+# Transformations on datasets through livy submit
 def transformations(**kwargs):
     # ti is the Task Instance
     ti = kwargs['ti']
