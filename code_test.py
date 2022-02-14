@@ -12,6 +12,7 @@ import boto3
 from datetime import date
 
 
+
 rand_int = random.randint(0,100000000)
 sc = SparkSession.builder.appName('App'+str(rand_int)).getOrCreate()
 sc.sparkContext.addPyFile("/usr/lib/spark/jars/delta-core_2.12-0.8.0.jar")
@@ -110,6 +111,8 @@ class TransformData:
         df = df.withColumn(col_name,df[col_name].cast(DecimalType(scale=scale)))
         return df
     
+    
+    
 class Add_to_delta:
 
     def __init__(self,df,dataset,spark_conf_loc):
@@ -117,15 +120,24 @@ class Add_to_delta:
          self.dataset = dataset
          self.conf_obj = Configuration(spark_conf_loc,dataset)
     
-    def get_target_df(self):
-        targetTable = DeltaTable.forPath(sc,"s3://stagingzone5077/Delta/"+self.dataset+"/")
-        df_target = targetTable.toDF()
+    def setup(self):
+        try:
+            targetTable = DeltaTable.forPath(sc,"s3://stagingzone5077/Delta/"+self.dataset+"/")
+        except:
+            df_source = self.df_source.withColumn('active_flag',lit('Y'))
+            df_source = df_source.withColumn('begin_date',lit(date.today()))
+            df_source = df_source.withColumn('end_date',lit('null'))
+            
+            df_source.write.format('delta').mode('overwrite').save("s3://stagingzone5077/"+"Delta/"+self.dataset+"/")
 
+            targetTable = DeltaTable.forPath(sc,"s3://stagingzone5077/Delta/"+self.dataset+"/")
+
+        df_target = targetTable.toDF()
         return df_target
     
     def process(self):
-        targetTable = DeltaTable.forPath(sc,"s3://stagingzone5077/Delta/"+self.dataset+"/")
-        df_target = self.get_target_df()
+
+        df_target = self.setup()
         primary_cols = self.conf_obj.pii_cols
 
         conditions = [(df_target.active_flag=="Y")]
@@ -142,18 +154,27 @@ class Add_to_delta:
         
 
         joinDF = self.df_source.join(df_target,conditions,"leftouter").select(fields_to_select)
+        filter_cols1 = []
+        filter_cols2 = []
 
-        if self.dataset=='Actives':
-            filterDF = joinDF.filter(xxhash64(joinDF.advertising_id,joinDF.masked_advertising_id,joinDF.user_id,joinDF.masked_user_id)
-                                !=xxhash64(joinDF.Target_advertising_id,joinDF.Target_masked_advertising_id,joinDF.Target_user_id,joinDF.Target_masked_user_id))
-            mergeDF = filterDF.withColumn("MERGEKEY",concat(filterDF.advertising_id,filterDF.user_id))
-            condition = "concat(target.advertising_id, target.user_id)=source.MERGEKEY and target.active_flag='Y'"
-        else:
-            filterDF = joinDF.filter(xxhash64(joinDF.advertising_id,joinDF.masked_advertising_id)
-                                !=xxhash64(joinDF.Target_advertising_id,joinDF.Target_masked_advertising_id))
+        for col in primary_cols:
+            filter_cols1.append(joinDF[col])
+            filter_cols1.append(joinDF['masked_'+col])
 
-            mergeDF = filterDF.withColumn("MERGEKEY",concat(filterDF.advertising_id))
-            condition = "concat(target.advertising_id)=source.MERGEKEY and target.active_flag='Y'"
+            filter_cols2.append(joinDF['Target_'+col])
+            filter_cols2.append(joinDF['Target_masked_'+col])
+
+        filterDF = joinDF.filter(xxhash64(*filter_cols1)
+                                !=xxhash64(*filter_cols2))
+
+        concat_cols = [filterDF[col] for col in primary_cols]
+        mergeDF = filterDF.withColumn("MERGEKEY",concat(*concat_cols))
+
+        condition = "concat("
+        condition_lst = []
+        for i in primary_cols:
+            condition_lst.append('target.'+i)
+        condition+=','.join(condition_lst)+")=source.MERGEKEY and target.active_flag='Y'"
 
         dummyDF = mergeDF.filter("Target_advertising_id is not null").withColumn("MERGEKEY",lit(None))
         scdDF = mergeDF.union(dummyDF)
@@ -162,7 +183,7 @@ class Add_to_delta:
             values[col] = "source."+col
             values["masked_"+col] = "source.masked_"+col
         
-        
+        targetTable = DeltaTable.forPath(sc,"s3://stagingzone5077/Delta/"+self.dataset+"/")
         targetTable.alias("target").merge(
             source = scdDF.alias('source'),
             condition = condition
@@ -212,15 +233,15 @@ if __name__=='__main__':
     for column in conf_obj.df_maskColumns:
         df = transform_obj.maskColumns(column,df)
 
-    #-----------------[Raw_Zone ---> Staging_Zone]--------------
-    #saving the file to stagingZone    s3://stagingzone5077/datasets/masked/Actives_parquet
+    
+    #adding historical data to delta table
     delta_add = Add_to_delta(df,dataset_to_be_processed,spark_config_loc)
     delta_add.process()
 
     primary_cols = conf_obj.pii_cols
     for i in primary_cols:
         df = df.drop(i)
-
+    #-----------------[Raw_Zone ---> Staging_Zone]--------------
     transform_obj.moveFilesWithPartition(df,'parquet',conf_obj.partition_cols,conf_obj.staging_zone_dest+dataset_to_be_processed+"/")
 
 
