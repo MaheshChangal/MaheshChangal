@@ -26,7 +26,6 @@ default_args = {
 
 
 # Initialize the DAG
-# Concurrency --> Number of tasks allowed to run concurrently
 dag = DAG('transform_data', concurrency=3, schedule_interval=None, default_args=default_args)
 s3 = boto3.resource('s3')
 
