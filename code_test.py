@@ -4,6 +4,7 @@ import hashlib
 import json
 import sys
 import re
+from unicodedata import ucd_3_2_0
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import *
 from pyspark.sql.types import DecimalType,StringType
@@ -120,6 +121,7 @@ class Add_to_delta:
          self.dataset = dataset
          self.conf_obj = Configuration(spark_conf_loc,dataset)
     
+
     def setup(self):
         try:
             targetTable = DeltaTable.forPath(sc,"s3://stagingzone5077/Delta/"+self.dataset+"/")
@@ -134,6 +136,8 @@ class Add_to_delta:
 
         df_target = targetTable.toDF()
         return df_target
+
+  
     
     def process(self):
 
@@ -204,6 +208,7 @@ if __name__=='__main__':
     dataset_to_be_processed = sys.argv[1]
     spark_config_loc = sys.argv[2]
     dataset_file = sys.argv[3]
+    env = sys.argv[4]
     transform_obj = TransformData()
     conf_obj = Configuration(spark_config_loc,dataset_to_be_processed)
     day = date.today()
@@ -233,10 +238,10 @@ if __name__=='__main__':
     for column in conf_obj.df_maskColumns:
         df = transform_obj.maskColumns(column,df)
 
-    
-    #adding historical data to delta table
-    delta_add = Add_to_delta(df,dataset_to_be_processed,spark_config_loc)
-    delta_add.process()
+    if env=='prod':
+        #adding historical data to delta table
+        delta_add = Add_to_delta(df,dataset_to_be_processed,spark_config_loc)
+        delta_add.process()
 
     primary_cols = conf_obj.pii_cols
     for i in primary_cols:
