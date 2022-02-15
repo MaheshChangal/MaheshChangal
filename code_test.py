@@ -22,17 +22,17 @@ from delta import *
 from delta.tables import *
 
 class Configuration:
-    def __init__(self,spark_config_loc,datasetName):
+    def __init__(self,spark_config_loc,datasetName,landing_bucket):
 
         self.s3 = boto3.resource('s3')
         self.datasetname = datasetName
-
+        self.landing_bucket = landing_bucket
         #set spark configuration
         self.setSparkConfig(spark_config_loc)
 
         # Extracting information from app_config file
         self.conf = self.fetchConfig()
-        self.landing_bucket = self.conf["landing-bucket"]
+        
         self.raw_bucket = self.conf["raw-bucket"]
         self.staging_bucket = self.conf["staging-bucket"]
 
@@ -208,9 +208,10 @@ if __name__=='__main__':
     dataset_to_be_processed = sys.argv[1]
     spark_config_loc = sys.argv[2]
     dataset_file = sys.argv[3]
-    env = sys.argv[4]
+    landing_bucket = sys.argv[4]
+    env = sys.argv[5]
     transform_obj = TransformData()
-    conf_obj = Configuration(spark_config_loc,dataset_to_be_processed)
+    conf_obj = Configuration(spark_config_loc,dataset_to_be_processed,landing_bucket)
     day = date.today()
 
     # Loading dataset from Raw Zone for processing
