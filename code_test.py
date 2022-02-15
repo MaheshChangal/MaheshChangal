@@ -57,7 +57,7 @@ class Configuration:
     # Sets spark configs from location fetched from livy call
     def setSparkConfig(self,location):
   
-        obj = self.s3.Object('landingzone5077', location)
+        obj = self.s3.Object(self.landing_bucket, location)
         body = obj.get()['Body'].read()
         json_raw = json.loads(body)
         spark_properties = json_raw['Properties']
@@ -72,7 +72,7 @@ class Configuration:
     # fetchConfig is used to get app_config file from s3 bucket   
     def fetchConfig(self):
         path = sc.sparkContext._conf.get('spark.app_config')
-        obj = self.s3.Object('landingzone5077', path)
+        obj = self.s3.Object(self.landing_bucket, path)
         body = obj.get()['Body'].read()
         confData = json.loads(body)
         
