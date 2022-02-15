@@ -32,7 +32,7 @@ class Configuration:
 
         # Extracting information from app_config file
         self.conf = self.fetchConfig()
-
+        self.landing_bucket = self.conf["landing-bucket"]
         self.raw_bucket = self.conf["raw-bucket"]
         self.staging_bucket = self.conf["staging-bucket"]
 
