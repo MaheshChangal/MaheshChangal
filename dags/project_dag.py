@@ -97,11 +97,10 @@ def transformations(**kwargs):
     # ti is the Task Instance
     ti = kwargs['ti']
     conf = ti.xcom_pull(key="data")
-    cid = "ec2-52-90-152-75.compute-1.amazonaws.com"
-    #cluster_id = ti.xcom_pull(task_ids='create_cluster')
-    #cluster_dns = emr.get_cluster_dns(cluster_id)
-    headers = emr.create_spark_session(cid, conf["dataset_name"],conf["code_path"],conf["spark_config_path"],conf['key'],conf['landing_bucket'],conf["env"])
-    emr.track_statement_progress(cid,headers)
+    cluster_id = ti.xcom_pull(task_ids='create_cluster')
+    cluster_dns = emr.get_cluster_dns(cluster_id)
+    headers = emr.create_spark_session(cluster_id, conf["dataset_name"],conf["code_path"],conf["spark_config_path"],conf['key'],conf['landing_bucket'],conf["env"])
+    emr.track_statement_progress(cluster_id,headers)
     
 def get_response(**kwargs):
     ti = kwargs['ti']
