@@ -116,10 +116,10 @@ class TransformData:
     
 class Add_to_delta:
 
-    def __init__(self,df,dataset,spark_conf_loc):
+    def __init__(self,df,dataset,spark_conf_loc,landing_bucket):
          self.df_source = df   
          self.dataset = dataset
-         self.conf_obj = Configuration(spark_conf_loc,dataset)
+         self.conf_obj = Configuration(spark_conf_loc,dataset,landing_bucket)
     
 
     def setup(self):
@@ -241,7 +241,7 @@ if __name__=='__main__':
 
     if env=='prod':
         #adding historical data to delta table
-        delta_add = Add_to_delta(df,dataset_to_be_processed,spark_config_loc)
+        delta_add = Add_to_delta(df,dataset_to_be_processed,spark_config_loc,landing_bucket)
         delta_add.process()
 
     primary_cols = conf_obj.pii_cols
