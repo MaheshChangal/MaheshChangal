@@ -30,13 +30,13 @@ default_args = {
 # Initialize the DAG
 dag = DAG('transform_data', concurrency=3, schedule_interval=None, default_args=default_args)
 s3 = boto3.resource('s3')
+region = 'us-east-1'
 
 # Creates an EMR cluster
 def create_emr(**kwargs):
     ti = kwargs['ti']
     conf = ti.xcom_pull(key='data')
     region = conf['region']
-    emr.client(region_name=region)
     cluster_id = emr.create_cluster(region_name=region, cluster_name='mahesh_cluster', num_core_nodes=2)
     return cluster_id
 
@@ -99,8 +99,8 @@ def transformations(**kwargs):
     conf = ti.xcom_pull(key="data")
     cluster_id = ti.xcom_pull(task_ids='create_cluster')
     cluster_dns = emr.get_cluster_dns(cluster_id)
-    headers = emr.create_spark_session(cluster_id, conf["dataset_name"],conf["code_path"],conf["spark_config_path"],conf['key'],conf['landing_bucket'],conf["env"])
-    emr.track_statement_progress(cluster_id,headers)
+    headers = emr.create_spark_session(cluster_dns, conf["dataset_name"],conf["code_path"],conf["spark_config_path"],conf['key'],conf['landing_bucket'],conf["env"])
+    emr.track_statement_progress(cluster_dns,headers)
     
 def get_response(**kwargs):
     ti = kwargs['ti']
@@ -150,7 +150,7 @@ def postValidation(**kwargs):
     
     today = date.today()
     months = ['January','February','March','April','May','June','July','August','September','October','November','December']
-    month = months[today.month-1].lower()
+    month = months[today.month-1]
     
     my_bucket = s3.Bucket(stage)     
     path = 'datasets/'+dataset+'/'+'month='+month+'/'+'date='+str(day)+'/'
@@ -158,7 +158,7 @@ def postValidation(**kwargs):
     datatype_update_cols = locations['datatype_update_cols']
     pre = ti.xcom_pull(key='pre_validation_data')
     pre_count = int(pre['counts'])
-    
+    print(path)
     
     cols = []
     for item in datatype_update_cols:
@@ -227,8 +227,6 @@ terminate_cluster = PythonOperator(
     trigger_rule='all_done',
     dag=dag)
 
-
-
 get_data = PythonOperator(
     task_id='get_data',
     python_callable=get_response,
@@ -253,4 +251,4 @@ post_validation = PythonOperator(
     )
 
 
-get_data >> get_app_config >> landing_to_raw >>pre_validation >> create_cluster >> wait_for_cluster_completion >> transform_data >> terminate_cluster >> post_validation  
+get_data >> get_app_config >> landing_to_raw >> pre_validation >> create_cluster >> wait_for_cluster_completion >> transform_data >> post_validation  >> terminate_cluster
