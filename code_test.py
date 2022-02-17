@@ -98,14 +98,14 @@ class TransformData:
     def moveFilesWithPartition(self,df,file_format,col_name,destination):
         df.write.partitionBy(col_name).mode("append").format(file_format).save(destination)
     
-    def hashing(self,value):
+    '''def hashing(self,value):
         sha_value = hashlib.sha256(value.encode()).hexdigest()
-        return sha_value
+        return sha_value'''
     
     # maskColumns is used to encrypt the columns of a specific data frame
     def maskColumns(self,col_name,df):
-        spark_udf = udf(self.hashing, StringType())
-        df = df.withColumn('masked_'+col_name,spark_udf(col_name))
+        #spark_udf = udf(self.hashing, StringType())
+        df = df.withColumn('masked_'+col_name,md5(col_name))
         return df
         
     def convertDecimals(self,df,col_name,scale):
