@@ -209,7 +209,7 @@ landing_to_raw = PythonOperator(
     task_id = 'Landing_Zone_to_Raw_Zone_',
     python_callable = landing_to_raw,
     dag=dag)
-'''
+
 create_cluster = PythonOperator(
     task_id='create_cluster',
     python_callable=create_emr,
@@ -229,7 +229,7 @@ terminate_cluster = PythonOperator(
     dag=dag)
 
 
-'''
+
 get_data = PythonOperator(
     task_id='get_data',
     python_callable=get_response,
@@ -254,4 +254,4 @@ post_validation = PythonOperator(
     )
 
 
-get_data >> get_app_config >> landing_to_raw >>pre_validation >> transform_data >>post_validation   #>> create_cluster >> wait_for_cluster_completion     >> terminate_cluster
+get_data >> get_app_config >> landing_to_raw >>pre_validation >> create_cluster >> wait_for_cluster_completion >> transform_data >> terminate_cluster >> post_validation  
